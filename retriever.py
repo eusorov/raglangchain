@@ -14,7 +14,7 @@ class Retriever:
         retriever = self.retrieve(query, k)
         source_documents = retriever.invoke(query)
         template = """
-        you are an expert on the EU AI Act and you answer questions based on the following context:
+        Answer questions based on the following context:
         {context}
 
         Question: {input}
