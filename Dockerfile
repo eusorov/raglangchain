@@ -34,8 +34,6 @@ WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
 COPY . .
 
-RUN mkdir -p /app/chroma-data
-
 EXPOSE 7860
 
 CMD ["python", "-m", "gradio_app"]
