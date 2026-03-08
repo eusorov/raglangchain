@@ -16,6 +16,9 @@ on:
         required: true
       DOCKER_TOKEN:
         required: true
+      OPENAI_API_KEY:
+        required: true
+
   workflow_dispatch:
     inputs:
       IMAGE:
@@ -77,9 +80,7 @@ jobs:
               fi
             fi
             
-            docker stop "${{ env.CONTAINER_NAME }}" || true
-            docker rm "${{ env.CONTAINER_NAME }}" || true
-      
+            docker compose -f docker-compose.yml -f docker-compose.deploy.yml down || true
             docker compose -f docker-compose.yml -f docker-compose.deploy.yml pull
             docker compose -f docker-compose.yml -f docker-compose.deploy.yml up -d
       
