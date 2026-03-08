@@ -60,26 +60,6 @@ jobs:
             docker image prune -a
             docker pull ${{ inputs.IMAGE }}
             
-            # Ensure the external network nginx_proxy_net exists before deploying
-            if ! docker network inspect nginx_proxy_net > /dev/null 2>&1; then
-              echo "Network nginx_proxy_net does not exist. Creating it..."
-              # Try to start nginx-proxy compose file first (which creates the network)
-              if [ -f docker-compose-nginx-proxy.yml ]; then
-                echo "Starting nginx-proxy from docker-compose-nginx-proxy.yml..."
-                docker compose -f docker-compose-nginx-proxy.yml up -d
-              else
-                # Fallback: create the network manually if compose file doesn't exist
-                echo "Creating nginx_proxy_net network manually..."
-                docker network create nginx_proxy_net
-              fi
-            else
-              echo "Network nginx_proxy_net already exists"
-              # Ensure nginx-proxy container is running if compose file exists
-              if [ -f docker-compose-nginx-proxy.yml ]; then
-                docker compose -f docker-compose-nginx-proxy.yml up -d
-              fi
-            fi
-            
             docker compose -f docker-compose.yml -f docker-compose.deploy.yml down || true
             docker compose -f docker-compose.yml -f docker-compose.deploy.yml pull
             docker compose -f docker-compose.yml -f docker-compose.deploy.yml up -d

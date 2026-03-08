@@ -23,7 +23,7 @@ services:
       CHROMA_PORT: "8000"
       CHROMA_SSL: "false"
       GRADIO_COLLECTION_NAME: "gradio_current_pdf"
-      VIRTUAL_HOST: "rag.usomi.com, raglangchain.local"
+      VIRTUAL_HOST: "rag.usomi.com raglangchain.local"
       VIRTUAL_PORT: "7860"
     extra_hosts:
       - "host.docker.internal:host-gateway"
