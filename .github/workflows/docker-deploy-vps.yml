@@ -1,0 +1,85 @@
+name: Deploy Docker
+
+on:
+  workflow_call:
+    inputs:
+      IMAGE:
+        required: true
+        type: string
+        description: Full Docker image reference (e.g. ghcr.io/eusorov/image:latest)
+    secrets:
+      VPS_HOST:
+        required: true
+      VPS_USER:
+        required: true
+      VPS_SSH_KEY:
+        required: true
+      DOCKER_TOKEN:
+        required: true
+  workflow_dispatch:
+    inputs:
+      IMAGE:
+        required: true
+        type: string
+        description: Full Docker image reference (e.g. ghcr.io/eusorov/image:latest)
+
+env:
+  REMOTE_DIR: ${{ github.event.repository.name }}
+  CONTAINER_NAME: ${{ github.event.repository.name }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+    
+      - name: Copy docker-compose.yml to VPS
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "docker-compose*.yml"
+          target: ${{ env.REMOTE_DIR }}
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1.2.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            cd ${{ env.REMOTE_DIR }}
+            export LLM_PROVIDER="openai"
+            export IMAGE="${{ inputs.IMAGE }}"
+            export OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}"
+            docker login ghcr.io -u ${{ github.repository_owner }} -p ${{ secrets.DOCKER_TOKEN }}
+            docker image prune -a
+            docker pull ${{ inputs.IMAGE }}
+            
+            # Ensure the external network nginx_proxy_net exists before deploying
+            if ! docker network inspect nginx_proxy_net > /dev/null 2>&1; then
+              echo "Network nginx_proxy_net does not exist. Creating it..."
+              # Try to start nginx-proxy compose file first (which creates the network)
+              if [ -f docker-compose-nginx-proxy.yml ]; then
+                echo "Starting nginx-proxy from docker-compose-nginx-proxy.yml..."
+                docker compose -f docker-compose-nginx-proxy.yml up -d
+              else
+                # Fallback: create the network manually if compose file doesn't exist
+                echo "Creating nginx_proxy_net network manually..."
+                docker network create nginx_proxy_net
+              fi
+            else
+              echo "Network nginx_proxy_net already exists"
+              # Ensure nginx-proxy container is running if compose file exists
+              if [ -f docker-compose-nginx-proxy.yml ]; then
+                docker compose -f docker-compose-nginx-proxy.yml up -d
+              fi
+            fi
+            
+            docker stop "${{ env.CONTAINER_NAME }}" || true
+            docker rm "${{ env.CONTAINER_NAME }}" || true
+      
+            docker compose -f docker-compose.yml -f docker-compose.deploy.yml pull
+            docker compose -f docker-compose.yml -f docker-compose.deploy.yml up -d
+      

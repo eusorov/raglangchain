@@ -1,0 +1,5 @@
+# Override for deployment: use pre-built image from registry instead of building.
+services:
+  app:
+    image: ${IMAGE}
+    build: !reset null
