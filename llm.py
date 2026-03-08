@@ -1,6 +1,6 @@
 """
-LLM factory: choose Ollama or Google Gemini based on LLM_PROVIDER env var.
-Used by gradio_app and main. Set in Docker via LLM_PROVIDER=ollama|gemini.
+LLM factory: choose Ollama, Google Gemini, or OpenAI based on LLM_PROVIDER env var.
+Used by gradio_app and main. Set in Docker via LLM_PROVIDER=ollama|gemini|openai.
 """
 import os
 
@@ -19,6 +19,12 @@ if LLM_PROVIDER == "gemini":
         google_api_key=GOOGLE_API_KEY or None,
         model=GEMINI_MODEL,
     )
+elif LLM_PROVIDER == "openai":
+    from langchain_openai import ChatOpenAI
+
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", config.get("OPENAI_API_KEY", ""))
+    OPENAI_MODEL = os.getenv("OPENAI_MODEL", config.get("OPENAI_MODEL", "gpt-4o-mini"))
+    llm = ChatOpenAI(api_key=OPENAI_API_KEY or None, model=OPENAI_MODEL)
 elif LLM_PROVIDER == "ollama":
     from langchain_ollama.chat_models import ChatOllama
 
@@ -31,5 +37,5 @@ elif LLM_PROVIDER == "ollama":
     llm = ChatOllama(base_url=LOCAL_LLM_BASE, model=LOCAL_LLM_MODEL)
 else:
     raise ValueError(
-        f"Unknown LLM_PROVIDER={LLM_PROVIDER!r}. Use LLM_PROVIDER=ollama or LLM_PROVIDER=gemini."
+        f"Unknown LLM_PROVIDER={LLM_PROVIDER!r}. Use LLM_PROVIDER=ollama, gemini, or openai."
     )
