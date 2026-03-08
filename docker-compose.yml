@@ -7,9 +7,15 @@ services:
     environment:
       GRADIO_SERVER_NAME: "0.0.0.0"
       GRADIO_SERVER_PORT: "7860"
+      # LLM_PROVIDER: ollama | gemini (switch implementation)
+      LLM_PROVIDER: "${LLM_PROVIDER:-ollama}"
+      # Ollama (when LLM_PROVIDER=ollama)
       LOCAL_LLM_BASE: "${LOCAL_LLM_BASE:-http://host.docker.internal:11434}"
       LOCAL_LLM_MODEL: "${LOCAL_LLM_MODEL:-qwen3}"
       LOCAL_EMBEDDING_MODEL: "${LOCAL_EMBEDDING_MODEL:-qwen3-embedding}"
+      # Gemini (when LLM_PROVIDER=gemini)
+      GOOGLE_API_KEY: "${GOOGLE_API_KEY:-}"
+      GEMINI_MODEL: "${GEMINI_MODEL:-gemini-2.0-flash-lite}"
       CHROMA_HOST: "chromadb"
       CHROMA_PORT: "8000"
       CHROMA_SSL: "false"

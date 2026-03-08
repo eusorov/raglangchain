@@ -32,6 +32,8 @@ def get_chroma_http_client():
         ssl=CHROMA_SSL,
     )
 
+client = get_chroma_http_client()
+
 def create_db(collection_name=CHROMA_COLLECTION_NAME, embedding="huggingface"):
     """
     Create a LangChain Chroma vectorstore (db) that connects to the Chroma HTTP server.
@@ -42,7 +44,7 @@ def create_db(collection_name=CHROMA_COLLECTION_NAME, embedding="huggingface"):
     else:
         embeddings = OllamaEmbeddings(base_url=LOCAL_LLM_BASE, model=LOCAL_EMBEDDING_MODEL)
     db = Chroma(
-        client=get_chroma_http_client(),
+        client=client,
         embedding_function=embeddings,
         collection_name=collection_name,
     )
@@ -51,7 +53,6 @@ def create_db(collection_name=CHROMA_COLLECTION_NAME, embedding="huggingface"):
 def chroma_collection_exists(collection_name=CHROMA_COLLECTION_NAME):
     """Return True if the Chroma collection already exists and has at least one document."""
     try:
-        client = get_chroma_http_client()
         coll = client.get_collection(name=collection_name)
         return coll.count() > 0
     except Exception:
@@ -61,7 +62,6 @@ def chroma_collection_exists(collection_name=CHROMA_COLLECTION_NAME):
 def get_collection_sample_metadata(collection_name=CHROMA_COLLECTION_NAME):
     """Return metadata from one document in the collection (e.g. pdf_name, indexed_at), or None if empty/missing."""
     try:
-        client = get_chroma_http_client()
         coll = client.get_collection(name=collection_name)
         if coll.count() == 0:
             return None
@@ -102,9 +102,8 @@ def split_documents(documents):
 
 def embed_documents_with_huggingface(all_splits, collection_name=CHROMA_COLLECTION_NAME):
     """Embed documents into the Chroma HTTP server. Optionally use a different collection."""
-    chroma_client = get_chroma_http_client()
     if chroma_collection_exists(collection_name=collection_name):
-        chroma_client.delete_collection(name=collection_name)
+        client.delete_collection(name=collection_name)
 
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
     db = Chroma.from_documents(

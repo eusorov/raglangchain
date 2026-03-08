@@ -1,18 +1,12 @@
-from dotenv import dotenv_values
-from langchain_ollama.chat_models import ChatOllama
-
+from llm import llm
 from retriever import Retriever
-from vector import create_db, chroma_collection_exists, load_documents, split_documents, embed_documents_with_huggingface, print_source_documents
-
-config = dotenv_values(".env")
-LOCAL_LLM_BASE = config.get("LOCAL_LLM_BASE", "http://localhost:11434")
-LOCAL_LLM_MODEL = config.get("LOCAL_LLM_MODEL", "qwen3")
-LOCAL_EMBEDDING_MODEL = config.get("LOCAL_EMBEDDING_MODEL", "qwen3-embedding")
-
-
-llm = ChatOllama(
-    base_url=LOCAL_LLM_BASE,
-    model=LOCAL_LLM_MODEL,
+from vector import (
+    create_db,
+    chroma_collection_exists,
+    load_documents,
+    split_documents,
+    embed_documents_with_huggingface,
+    print_source_documents,
 )
 
 if __name__ == "__main__":
