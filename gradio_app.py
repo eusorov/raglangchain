@@ -2,6 +2,8 @@
 Gradio web UI for PDF Q&A: upload a PDF, chat about it using the existing RAG pipeline.
 Run with: python -m gradio_app  or  python gradio_app.py
 """
+import os
+
 import gradio as gr
 from dotenv import dotenv_values
 from langchain_ollama.chat_models import ChatOllama
@@ -18,8 +20,16 @@ from vector import (
 )
 
 config = dotenv_values(".env")
-LOCAL_LLM_BASE = config.get("LOCAL_LLM_BASE", "http://localhost:11434")
-LOCAL_LLM_MODEL = config.get("LOCAL_LLM_MODEL", "qwen3")
+LOCAL_LLM_BASE = os.getenv(
+    "LOCAL_LLM_BASE", config.get("LOCAL_LLM_BASE", "http://localhost:11434")
+)
+LOCAL_LLM_MODEL = os.getenv("LOCAL_LLM_MODEL", config.get("LOCAL_LLM_MODEL", "qwen3"))
+GRADIO_SERVER_NAME = os.getenv(
+    "GRADIO_SERVER_NAME", config.get("GRADIO_SERVER_NAME", "127.0.0.1")
+)
+GRADIO_SERVER_PORT = int(
+    os.getenv("GRADIO_SERVER_PORT", config.get("GRADIO_SERVER_PORT", "7860"))
+)
 
 llm = ChatOllama(base_url=LOCAL_LLM_BASE, model=LOCAL_LLM_MODEL)
 
@@ -195,7 +205,11 @@ def main():
         )
 
     demo.queue()
-    demo.launch(share=False)
+    demo.launch(
+        share=False,
+        server_name=GRADIO_SERVER_NAME,
+        server_port=GRADIO_SERVER_PORT,
+    )
 
 
 if __name__ == "__main__":

@@ -26,6 +26,19 @@ Add a **Gradio-based GUI** so that a user can upload a PDF file and ask question
    - Use the current stack: LangChain, Chroma, existing `vector.py` (load, split, embed, create_db), and `retriever.py` (e.g. `generate` or `generate_with_qa`).
    - Use the same config as today: `.env` for `LOCAL_LLM_BASE`, `LOCAL_LLM_MODEL`, `LOCAL_EMBEDDING_MODEL`; existing embedding and LLM choices (e.g. Ollama, HuggingFace) should remain usable.
 
+5. **LLM provider choice**
+   - The user must be able to choose between using a local LLM and using the OpenAI API.
+   - The application should support configuration for both options through environment variables and/or the UI.
+   - If OpenAI is selected, the app should use an `OPENAI_API_KEY` (and model setting if needed).
+   - If local LLM is selected, the app should continue to use the existing local configuration such as `LOCAL_LLM_BASE` and `LOCAL_LLM_MODEL`.
+   - The planner should include how provider selection is wired into app configuration, runtime initialization, and error handling when required credentials are missing.
+
+6. **Containerization**
+   - The project should include a `Dockerfile` to build and run the application in a container.
+   - The project should include a `docker-compose.yml` (or `compose.yaml`) to run the application locally with the required configuration.
+   - The planner should include how environment variables, app startup, exposed ports, and persistent data (for example Chroma storage) are handled in Docker.
+   - The planner should consider how the app connects to a local LLM service versus OpenAI when running inside Docker.
+
 ## Nice-to-have (optional)
 
 - Clear indication when the PDF is still being processed (e.g. “Indexing…” or disabled chat until ready).
@@ -41,6 +54,8 @@ Add a **Gradio-based GUI** so that a user can upload a PDF file and ask question
 
 - **Existing modules:** `main.py` (entry point, hardcoded PDF path and query), `vector.py` (PDF load, split, embed, Chroma create_db/collection checks), `retriever.py` (retrieve, generate, generate_with_qa, generate_with_message).
 - **Config:** `.env` with `LOCAL_LLM_BASE`, `LOCAL_LLM_MODEL`, `LOCAL_EMBEDDING_MODEL`; Chroma persist dir and collection name in `vector.py`.
+- **New config requirement:** add support for OpenAI configuration as well, such as `OPENAI_API_KEY` and an OpenAI model name variable.
 - **Dependencies:** Project already uses LangChain, Chroma, PyPDF; Gradio will need to be added.
+- **Deployment requirement:** add container support with `Dockerfile` and Docker Compose configuration.
 
 The planner should produce a technical plan that the implementer can follow to add the Gradio UI, wire PDF upload to the existing pipeline, and connect the chat to the RAG retriever and LLM.
