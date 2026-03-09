@@ -60,7 +60,7 @@ jobs:
             export LLM_PROVIDER="openai"
             export IMAGE="${{ inputs.IMAGE }}"
             export OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}"
-            echo '[{"email":${{ secrets.EXAMPLE_EMAIL }},"password_hash":${{ secrets.EXAMPLE_HASH }}}]' > users.json
+            echo '[{"email":"${{ secrets.EXAMPLE_EMAIL }}","password_hash":"${{ secrets.EXAMPLE_HASH }}"}]' > users.json
 
             docker login ghcr.io -u ${{ github.repository_owner }} -p ${{ secrets.DOCKER_TOKEN }}
             docker image prune -a
