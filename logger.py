@@ -38,6 +38,7 @@ def setup_otel_logging():
         return
     endpoint = _otel_endpoint()
     if not endpoint:
+        _otel_initialized = True
         return
     setup_otel_tracing()
     # Ensure URL path for logs (OTEL_EXPORTER_OTLP_ENDPOINT is base)
