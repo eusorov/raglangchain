@@ -1,6 +1,12 @@
 import os
 from datetime import datetime, timezone
 
+# OpenTelemetry: set up logging/tracing and instrument ChromaDB before first use
+from logger import setup_otel_logging
+setup_otel_logging()
+from opentelemetry.instrumentation.chromadb import ChromaInstrumentor
+ChromaInstrumentor().instrument()
+
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_ollama import OllamaEmbeddings
 from langchain_chroma import Chroma
@@ -8,6 +14,7 @@ from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 import chromadb
 from dotenv import dotenv_values
+import logging
 
 config = dotenv_values(".env")
 LOCAL_LLM_BASE = os.getenv(
@@ -136,11 +143,11 @@ def print_source_documents(source_documents, max_chars=500):
     """Print which documents were used for the RAG answer."""
     if not source_documents:
         return
-    print(f"\n--- Source documents ({len(source_documents)} chunks) ---")
-    for i, doc in enumerate(source_documents, 1):
-        content = doc.page_content.replace("\n", " ").strip()
-        preview = content[:max_chars] + "..." if len(content) > max_chars else content
-        meta = getattr(doc, "metadata", None) or {}
-        print(f"\n[{i}] {preview}")
-        if meta:
-            print(f"    metadata: {meta}")
+    logging.info(f"\n--- Source documents ({len(source_documents)} chunks) ---")
+    # for i, doc in enumerate(source_documents, 1):
+    #     content = doc.page_content.replace("\n", " ").strip()
+    #     preview = content[:max_chars] + "..." if len(content) > max_chars else content
+    #     meta = getattr(doc, "metadata", None) or {}
+    #     print(f"\n[{i}] {preview}")
+    #     if meta:
+    #         print(f"    metadata: {meta}")

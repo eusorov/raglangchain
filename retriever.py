@@ -1,6 +1,5 @@
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-from langchain_classic.chains import RetrievalQA
 
 class Retriever:   
     def __init__(self, db):
@@ -35,14 +34,4 @@ class Retriever:
         response = chain.invoke({"context": source_documents, "input": query})
         return response, source_documents
 
-    def generate_with_qa(self, query, llm, k=4):
-        retriever = self.retrieve(query, k)
-        qa = RetrievalQA.from_chain_type(
-            llm=llm,
-            retriever=retriever,
-            chain_type="stuff",
-            return_source_documents=True,
-            )
-        result = qa.invoke({"query": query})
-        return result["result"], result["source_documents"]
     

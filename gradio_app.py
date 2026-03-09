@@ -2,11 +2,14 @@
 Gradio web UI for PDF Q&A: upload a PDF, chat about it using the existing RAG pipeline.
 Run with: python -m gradio_app  or  python gradio_app.py
 """
+from logger import setup_otel_logging
+import logging
 import os
 
 import gradio as gr
 from dotenv import dotenv_values
 
+logger = logging.getLogger(__name__)
 from llm import llm
 from retriever import Retriever
 from vector import (
@@ -31,24 +34,32 @@ GRADIO_SERVER_PORT = int(
 def process_pdf(file_obj, state_db, status_msg, state_pdf_name):
     """Load, split, embed the uploaded PDF into the Gradio collection. Yield status updates."""
     if file_obj is None:
+        logger.debug("process_pdf called with no file")
         yield state_db, status_msg or "No file selected.", state_pdf_name
         return
     path = file_obj if isinstance(file_obj, str) else (getattr(file_obj, "name", None) or getattr(file_obj, "path", None))
     if not path or not str(path).lower().endswith(".pdf"):
+        logger.warning("process_pdf: invalid or non-PDF file path=%s", path)
         yield state_db, "Please upload a PDF file.", state_pdf_name
         return
+    logger.info("Processing PDF: path=%s", path)
     yield state_db, "Indexing…", state_pdf_name
     try:
         documents = load_documents(path)
         if not documents:
+            logger.warning("No content loaded from PDF: path=%s", path)
             yield state_db, "No content could be loaded from the PDF.", state_pdf_name
             return
+        logger.info("Loaded %d pages from PDF: path=%s", len(documents), path)
         all_splits = split_documents(documents)
+        logger.info("Split into %d chunks, embedding into collection=%s", len(all_splits), GRADIO_COLLECTION_NAME)
         db = embed_documents_with_huggingface(all_splits, collection_name=GRADIO_COLLECTION_NAME)
         # Read PDF name from chunk metadata (set in vector.load_documents)
         pdf_name = (all_splits[0].metadata.get("pdf_name") if all_splits else None) or "PDF"
+        logger.info("PDF indexed successfully: pdf_name=%s chunks=%d", pdf_name, len(all_splits))
         yield db, f"Ready. {len(all_splits)} chunks indexed. You can ask questions below.", pdf_name
     except Exception as e:
+        logger.exception("Error processing PDF: path=%s", path)
         yield state_db, f"Error processing PDF: {e}", state_pdf_name
 
 
@@ -56,6 +67,7 @@ def add_user_message(message, history):
     """Add the user's message immediately so Gradio can show progress while the answer is generated."""
     if not message or not message.strip():
         return history, ""
+    logger.info("User question: %s", message.strip()[:200] + ("..." if len(message.strip()) > 200 else ""))
     new_history = (history or []) + [{"role": "user", "content": message}]
     return new_history, ""
 
@@ -82,6 +94,7 @@ def generate_response(history, state_db, last_sources):
 
     message = _extract_message_text(history[-1]["content"])
     if state_db is None:
+        logger.debug("Generate requested but no PDF loaded")
         new_history = history + [
             {"role": "assistant", "content": "Please upload a PDF first."},
         ]
@@ -90,9 +103,12 @@ def generate_response(history, state_db, last_sources):
         retriever = Retriever(state_db)
         answer, source_documents = retriever.generate_with_message(message, llm, k=10)
         source_text = _format_sources(source_documents) if source_documents else ""
+        num_sources = len(source_documents) if source_documents else 0
+        logger.info("RAG response generated: query_len=%d answer_len=%d sources=%d", len(message), len(answer), num_sources)
         new_history = history + [{"role": "assistant", "content": answer}]
         return new_history, source_text, source_text
     except Exception as e:
+        logger.exception("RAG generate failed: query=%s", message[:100])
         new_history = history + [{"role": "assistant", "content": f"Error: {e}"}]
         return new_history, last_sources, last_sources
 
@@ -111,16 +127,19 @@ def _format_sources(source_documents, max_chars=400):
 
 def reset_pdf(state_db, chatbot, status, last_sources, state_pdf_name):
     """Clear current PDF, chat history, and status."""
+    logger.info("User cleared PDF and chat")
     return None, [], "Upload a PDF to get started.", "", "", None
 
 
 def load_initial_state():
     """Read current metadata from the Gradio collection on app start; restore db and PDF name if present."""
     if not chroma_collection_exists(collection_name=GRADIO_COLLECTION_NAME):
+        logger.info("No existing Gradio collection; prompt user to upload PDF")
         return None, None, "Upload a PDF to get started."
     db = create_db(collection_name=GRADIO_COLLECTION_NAME)
     meta = get_collection_sample_metadata(collection_name=GRADIO_COLLECTION_NAME)
     pdf_name = (meta.get("pdf_name") if meta else None) or "PDF"
+    logger.info("Restored state from existing collection: pdf_name=%s", pdf_name)
     return db, pdf_name, f"Loaded existing document: {pdf_name}"
 
 
@@ -199,6 +218,11 @@ def main():
         )
 
     demo.queue()
+    logger.info(
+        "Starting Gradio server: host=%s port=%s",
+        GRADIO_SERVER_NAME,
+        GRADIO_SERVER_PORT,
+    )
     demo.launch(
         share=False,
         server_name=GRADIO_SERVER_NAME,
@@ -207,4 +231,5 @@ def main():
 
 
 if __name__ == "__main__":
+    setup_otel_logging()
     main()
