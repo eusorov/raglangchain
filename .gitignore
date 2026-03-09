@@ -1,5 +1,8 @@
 .env
+users.json
 chroma-data
 __pycache__
 
 langchain
+.venv
+.pytest_cache

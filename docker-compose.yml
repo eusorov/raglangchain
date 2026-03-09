@@ -26,6 +26,10 @@ services:
       - CHROMA_PORT=8000
       - CHROMA_SSL=false
       - GRADIO_COLLECTION_NAME=gradio_current_pdf
+      # Authentication — bcrypt hashes contain '$' which Docker Compose variable
+      # interpolation corrupts. Pass users.json via a Docker secret (file-based)
+      # so Python reads it directly without any interpolation.
+      - AUTH_USERS_FILE=users.json
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-lgtm:4318
       - OTEL_SERVICE_NAME=raglangchain
     extra_hosts:

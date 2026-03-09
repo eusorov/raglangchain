@@ -70,3 +70,5 @@ jobs:
       VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
       DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }} 
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      EXAMPLE_EMAIL: ${{ secrets.EXAMPLE_EMAIL }}
+      EXAMPLE_HASH: ${{ secrets.EXAMPLE_HASH }}

@@ -10,6 +10,7 @@ import gradio as gr
 from dotenv import dotenv_values
 
 logger = logging.getLogger(__name__)
+from auth import authenticate
 from llm import llm
 from retriever import Retriever
 from vector import (
@@ -227,6 +228,8 @@ def main():
         share=False,
         server_name=GRADIO_SERVER_NAME,
         server_port=GRADIO_SERVER_PORT,
+        auth=authenticate,
+        auth_message="RAG Demo - PDF Q&A - please log in",
     )
 
 
