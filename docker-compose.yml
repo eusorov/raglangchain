@@ -29,7 +29,7 @@ services:
       # Authentication — bcrypt hashes contain '$' which Docker Compose variable
       # interpolation corrupts. Pass users.json via a Docker secret (file-based)
       # so Python reads it directly without any interpolation.
-      - AUTH_USERS_FILE=users.json
+      - AUTH_USERS_FILE=/run/secrets/users_json
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-lgtm:4318
       - OTEL_SERVICE_NAME=raglangchain
     extra_hosts:
@@ -37,6 +37,8 @@ services:
     command: python -m gradio_app
     networks:
       - nginx_proxy_net
+    secrets:
+      - users_json
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:7860"]
       interval: 10s
@@ -55,7 +57,7 @@ services:
       timeout: 10s
       retries: 3
     networks:
-      - raglangchain_net
+      - nginx_proxy_net
   otel-lgtm:
     image: grafana/otel-lgtm:latest
     ports:
@@ -78,6 +80,9 @@ services:
 volumes:
   chroma-data:
 
+secrets:
+  users_json:
+    file: ./users.json
 networks:
   nginx_proxy_net:
     external: true
