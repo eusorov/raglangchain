@@ -35,13 +35,6 @@ if __name__ == "__main__":
     print(f"Answer: {answer}")
     print_source_documents(source_documents)
 
-    print("Sending RAG query (Retriever.generate_with_qa)...")
-    result = retriever.generate_with_qa(query, llm, k=4)
-    answer, source_documents = result
-    print(f"Question: {query}")
-    print(f"Answer: {answer}")
-    print_source_documents(source_documents)
-
     print("Sending RAG query (Retriever.generate_with_message)...")
     result = retriever.generate_with_message(query, llm, k=4, template=None)
     answer, source_documents = result

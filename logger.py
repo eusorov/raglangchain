@@ -34,6 +34,8 @@ def setup_otel_tracing():
 
 def setup_otel_logging():
     global _otel_initialized
+    if _otel_initialized:
+        return
     endpoint = _otel_endpoint()
     if not endpoint:
         return
