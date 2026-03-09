@@ -7,6 +7,7 @@ services:
     environment:
       - VIRTUAL_HOST=rag.usomi.com,raglangchain.local
       - VIRTUAL_PORT=7860
+      - LETSENCRYPT_HOST=rag.usomi.com
       - GRADIO_SERVER_NAME=0.0.0.0
       - GRADIO_SERVER_PORT= ${GRADIO_SERVER_PORT:-7860}
       # LLM_PROVIDER: ollama | gemini | openai (switch implementation)
@@ -26,7 +27,7 @@ services:
       - CHROMA_SSL=false
       - GRADIO_COLLECTION_NAME=gradio_current_pdf
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-lgtm:4318
-      - OTEL_SERVICE_NAME=rag.usomi.com
+      - OTEL_SERVICE_NAME=raglangchain
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command: python -m gradio_app
@@ -37,8 +38,11 @@ services:
     image: chromadb/chroma:1.5.3
     volumes:
       - ./chroma-data:/data
-    expose:
-      - "8000"
+    environment:
+      - CHROMA_OPEN_TELEMETRY__ENDPOINT=http://otel-lgtm:4317/
+      - CHROMA_OPEN_TELEMETRY__SERVICE_NAME=chromadb
+    ports:
+      - "8000:8000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v2/heartbeat"]
       interval: 30s
@@ -50,6 +54,7 @@ services:
     image: grafana/otel-lgtm:latest
     ports:
       - "4318:4318"
+      - "4317:4317"
       - "3000:3000"
     environment:
       - LGTMC_PROJECT_ID=raglangchain
