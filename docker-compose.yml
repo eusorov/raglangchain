@@ -2,12 +2,12 @@ services:
   app:
     build:
       context: .
-    ports:
-      - "7860:7860"
+    expose:
+      - "7860"
     environment:
-      - VIRTUAL_HOST=rag.usomi.com,raglangchain.local
+      - VIRTUAL_HOST=rag.usomi.de,raglangchain.local
       - VIRTUAL_PORT=7860
-      - LETSENCRYPT_HOST=rag.usomi.com
+      - LETSENCRYPT_HOST=rag.usomi.de
       - GRADIO_SERVER_NAME=0.0.0.0
       - GRADIO_SERVER_PORT= ${GRADIO_SERVER_PORT:-7860}
       # LLM_PROVIDER: ollama | gemini | openai (switch implementation)
@@ -34,6 +34,12 @@ services:
     networks:
       - nginx_proxy_net
       - raglangchain_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:7860"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
   chromadb:
     image: chromadb/chroma:1.5.3
     volumes:
@@ -41,8 +47,8 @@ services:
     environment:
       - CHROMA_OPEN_TELEMETRY__ENDPOINT=http://otel-lgtm:4317/
       - CHROMA_OPEN_TELEMETRY__SERVICE_NAME=chromadb
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/v2/heartbeat"]
       interval: 30s
