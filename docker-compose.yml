@@ -44,9 +44,6 @@ services:
     image: chromadb/chroma:1.5.3
     volumes:
       - ./chroma-data:/data
-    environment:
-      - CHROMA_OPEN_TELEMETRY__ENDPOINT=http://otel-lgtm:4317/
-      - CHROMA_OPEN_TELEMETRY__SERVICE_NAME=chromadb
     expose:
       - "8000"
     healthcheck:
