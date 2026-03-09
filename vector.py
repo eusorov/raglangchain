@@ -80,6 +80,56 @@ def get_collection_sample_metadata(collection_name=CHROMA_COLLECTION_NAME):
     except Exception:
         return None
 
+def _estimate_body_font_size(file_path: str) -> float:
+    """Return the most-common (mode) rounded font size across all pages — the body-text baseline."""
+    from collections import Counter
+    import pdfplumber
+    sizes = []
+    with pdfplumber.open(file_path) as pdf:
+        for page in pdf.pages:
+            for char in page.chars:
+                sz = char.get("size")
+                if sz:
+                    sizes.append(round(float(sz), 1))
+    return Counter(sizes).most_common(1)[0][0] if sizes else 10.0
+
+
+def _extract_headers_with_pdfplumber(file_path: str, body_size: float) -> list[dict]:
+    """
+    For each page return the first large-font, short line in the top half of the page.
+    Returns a list of {page_1based, text}.
+    """
+    import pdfplumber
+    threshold = body_size * 1.2
+    headers = []
+    with pdfplumber.open(file_path) as pdf:
+        for page_0based, page in enumerate(pdf.pages):
+            page_1based = page_0based + 1
+            page_height = page.height or 1
+            words = page.extract_words(extra_attrs=["size"])
+            if not words:
+                continue
+            # Keep only large-font words in the top half of the page
+            large_words = [
+                w for w in words
+                if w.get("size", 0) >= threshold and w.get("top", page_height) <= page_height * 0.5
+            ]
+            if not large_words:
+                continue
+            # Group consecutive words into lines by rounding their top-coordinate
+            lines: dict[int, list[str]] = {}
+            for w in large_words:
+                key = round(w["top"])
+                lines.setdefault(key, []).append(w["text"])
+            # Reconstruct line strings, pick the first one that is short enough
+            for _top, words_in_line in sorted(lines.items()):
+                line_text = " ".join(words_in_line).strip()
+                if 3 <= len(line_text) <= 80:
+                    headers.append({"page_1based": page_1based, "text": line_text})
+                    break  # one header per page
+    return headers
+
+
 def _roman_to_int(s: str) -> int:
     """Convert a Roman numeral string (I–XIII range) to int. Raises ValueError for unrecognised input."""
     roman_values = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100, "D": 500, "M": 1000}
@@ -98,20 +148,63 @@ def _roman_to_int(s: str) -> int:
     return total
 
 
-def extract_chapter_structure(documents):
+_numbered_heading_re = re.compile(
+    r'^([IVXLCDM]+|\d+)\.?\s+(.*)',
+    re.IGNORECASE,
+)
+_chapter_re = re.compile(
+    r'^chapter\s+([IVXLCDM]+|\d+)[^\S\r\n]*[–\-:]?[^\S\r\n]*(.*)',
+    re.IGNORECASE | re.MULTILINE,
+)
+
+
+def _assign_chapter_number(text: str, counter: int) -> tuple[int, str]:
+    """
+    Parse a leading digit or Roman numeral from *text*.
+    Returns (chapter_number, chapter_title).
+    Falls back to auto-incrementing *counter* when no number is found.
+    """
+    m = _numbered_heading_re.match(text.strip())
+    if m:
+        raw_num = m.group(1).strip()
+        title = m.group(2).strip() or text.strip()
+        try:
+            return _roman_to_int(raw_num), title
+        except ValueError:
+            return int(raw_num), title
+    return counter, text.strip()
+
+
+def extract_chapter_structure(documents, file_path: str | None = None):
     """
     Scan page-level Documents for chapter headings.
     Returns a list of dicts: {number, title, page_start, page_end}.
     page_start and page_end are 1-based page numbers.
+
+    When *file_path* is given, pdfplumber font-size analysis is used to detect
+    the largest text on each page as the chapter header (regardless of wording).
+    When *file_path* is None the legacy regex path ("Chapter X …") is used.
     """
-    heading_re = re.compile(
-        r'^chapter\s+([IVXLCDM]+|\d+)[^\S\r\n]*[–\-:]?[^\S\r\n]*(.*)',
-        re.IGNORECASE | re.MULTILINE,
-    )
+    if file_path is not None:
+        chapters = _extract_chapters_pdfplumber(documents, file_path)
+    else:
+        chapters = _extract_chapters_regex(documents)
+
+    for i, ch in enumerate(chapters):
+        if i + 1 < len(chapters):
+            ch["page_end"] = chapters[i + 1]["page_start"] - 1
+        else:
+            ch["page_end"] = documents[-1].metadata.get("page", 0) + 1
+
+    return chapters
+
+
+def _extract_chapters_regex(documents):
+    """Legacy path: detect headings that literally start with 'Chapter N'."""
     chapters = []
     for doc in documents:
         page_1based = doc.metadata.get("page", 0) + 1
-        match = heading_re.search(doc.page_content[:400])
+        match = _chapter_re.search(doc.page_content[:400])
         if match:
             raw_num = match.group(1).strip()
             raw_title = match.group(2).strip()
@@ -125,13 +218,39 @@ def extract_chapter_structure(documents):
                 "page_start": page_1based,
                 "page_end": -1,
             })
+    return chapters
 
-    for i, ch in enumerate(chapters):
-        if i + 1 < len(chapters):
-            ch["page_end"] = chapters[i + 1]["page_start"] - 1
-        else:
-            ch["page_end"] = documents[-1].metadata.get("page", 0) + 1
 
+def _extract_chapters_pdfplumber(documents, file_path: str):
+    """
+    Use pdfplumber font-size analysis to detect chapter-level headers.
+    Each page's largest-font short line (top half of page) is treated as the header.
+    Chapter numbers are parsed from a leading digit/Roman numeral, or auto-incremented.
+    """
+    body_size = _estimate_body_font_size(file_path)
+    raw_headers = _extract_headers_with_pdfplumber(file_path, body_size)
+
+    # Build a fast lookup: page_1based → header text
+    header_by_page = {h["page_1based"]: h["text"] for h in raw_headers}
+
+    chapters = []
+    auto_counter = 0
+    for doc in documents:
+        page_1based = doc.metadata.get("page", 0) + 1
+        header_text = header_by_page.get(page_1based)
+        if header_text is None:
+            continue
+        auto_counter += 1
+        number, title = _assign_chapter_number(header_text, auto_counter)
+        # Avoid duplicates: skip if same number was already recorded
+        if chapters and chapters[-1]["number"] == number:
+            continue
+        chapters.append({
+            "number": number,
+            "title": title,
+            "page_start": page_1based,
+            "page_end": -1,
+        })
     return chapters
 
 
@@ -152,7 +271,7 @@ def load_documents(file_path, extra_metadata=None):
         **({"file_modified": file_modified} if file_modified else {}),
         **(extra_metadata or {}),
     }
-    chapters = extract_chapter_structure(documents)
+    chapters = extract_chapter_structure(documents, file_path=file_path)
 
     def _chapter_for_page(page_1based):
         """Return the chapter dict whose range contains page_1based, or None."""

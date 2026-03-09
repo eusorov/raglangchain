@@ -331,7 +331,7 @@ def _call_generate_response(classify_return, method_return=("LLM answer", [])):
         patch.object(gradio_app, "classify_query", return_value=classify_return),
         patch.object(gradio_app, "Retriever", return_value=mock_instance),
     ):
-        gradio_app.generate_response(history, state_db, "")
+        list(gradio_app.generate_response(history, state_db, ""))
 
     return mock_instance
 
@@ -363,3 +363,12 @@ class TestGenerateResponseDispatch:
         # here we confirm generate_response handles that result correctly.
         instance = _call_generate_response(("semantic", None))
         instance.generate_with_message.assert_called_once()
+
+    def test_chapter_filtered_with_none_chapter_number_falls_back_to_semantic(self, _stub_for_dispatch):
+        # When classify_query returns ("chapter_filtered", None) — e.g. the LLM did not
+        # extract a chapter number — generate_response must NOT call generate_chapter_filtered
+        # (which would build {"chapter_number": None} in ChromaDB). It must fall back to
+        # semantic search instead.
+        instance = _call_generate_response(("chapter_filtered", None))
+        instance.generate_with_message.assert_called_once()
+        instance.generate_chapter_filtered.assert_not_called()

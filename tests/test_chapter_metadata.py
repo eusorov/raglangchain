@@ -226,8 +226,19 @@ def fresh_pages():
 
 class TestLoadDocumentsChapterAnnotation:
 
+    # Pdfplumber headers matching the fake-page content so chapter numbers
+    # and titles are identical to what the regex path would have produced.
+    _FAKE_PDFPLUMBER_HEADERS = [
+        {"page_1based": 2, "text": "I General Provisions"},
+        {"page_1based": 3, "text": "II Prohibited AI Practices"},
+    ]
+
     def _call_load(self, pages, extra_metadata=None):
-        with patch("vector.PyPDFLoader") as mock_cls:
+        with (
+            patch("vector.PyPDFLoader") as mock_cls,
+            patch("vector._estimate_body_font_size", return_value=10.0),
+            patch("vector._extract_headers_with_pdfplumber", return_value=self._FAKE_PDFPLUMBER_HEADERS),
+        ):
             mock_cls.return_value.load.return_value = pages
             return load_documents("fake.pdf", extra_metadata=extra_metadata)
 

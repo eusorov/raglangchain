@@ -88,21 +88,35 @@ def _extract_message_text(content):
     return str(content)
 
 
+_ROUTE_LABELS = {
+    "structural":       "Structural query (document structure)",
+    "chapter_filtered": "Chapter-filtered query (chapter {n})",
+    "semantic":         "Semantic search",
+}
+
+
 def generate_response(history, state_db, last_sources):
-    """Generate the assistant response for the latest user message."""
+    """Generator: yields a classification label first, then the final answer."""
     if not history:
-        return history, last_sources, last_sources
+        yield history, last_sources, last_sources
+        return
 
     message = _extract_message_text(history[-1]["content"])
     if state_db is None:
         logger.debug("Generate requested but no PDF loaded")
-        new_history = history + [
-            {"role": "assistant", "content": "Please upload a PDF first."},
-        ]
-        return new_history, last_sources, last_sources
+        yield history + [{"role": "assistant", "content": "Please upload a PDF first."}], last_sources, last_sources
+        return
     try:
         retriever = Retriever(state_db)
         query_type, chapter_number = classify_query(message, llm)
+        if query_type == "chapter_filtered" and chapter_number is None:
+            logger.warning("classify_query returned chapter_filtered with no chapter number; falling back to semantic")
+            query_type = "semantic"
+
+        label = _ROUTE_LABELS.get(query_type, query_type).format(n=chapter_number)
+        classification_line = f"*Routing: {label}*"
+        yield history + [{"role": "assistant", "content": classification_line}], last_sources, last_sources
+
         if query_type == "structural":
             answer, source_documents = retriever.answer_structural(message, llm)
         elif query_type == "chapter_filtered":
@@ -111,15 +125,15 @@ def generate_response(history, state_db, last_sources):
             )
         else:
             answer, source_documents = retriever.generate_with_message(message, llm, k=10)
+
         source_text = _format_sources(source_documents) if source_documents else ""
         num_sources = len(source_documents) if source_documents else 0
         logger.info("RAG response generated: query_len=%d answer_len=%d sources=%d", len(message), len(answer), num_sources)
-        new_history = history + [{"role": "assistant", "content": answer}]
-        return new_history, source_text, source_text
+        full_answer = f"{classification_line}\n\n{answer}"
+        yield history + [{"role": "assistant", "content": full_answer}], source_text, source_text
     except Exception as e:
         logger.exception("RAG generate failed: query=%s", message[:100])
-        new_history = history + [{"role": "assistant", "content": f"Error: {e}"}]
-        return new_history, last_sources, last_sources
+        yield history + [{"role": "assistant", "content": f"Error: {e}"}], last_sources, last_sources
 
 
 def _format_sources(source_documents, max_chars=400):
