@@ -29,6 +29,7 @@ def _isolate_gradio_app(monkeypatch):
 
     stub_retriever = sys.modules["retriever"]
     stub_retriever.Retriever = MagicMock()
+    stub_retriever.classify_query = MagicMock(return_value=("semantic", None))
 
     stub_logger = sys.modules["logger"]
     stub_logger.setup_otel_logging = MagicMock()

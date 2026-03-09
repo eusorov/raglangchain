@@ -20,7 +20,7 @@ from langchain_core.documents import Document
 if "logger" not in sys.modules:
     _logger_stub = ModuleType("logger")
     _logger_stub.setup_otel_logging = MagicMock(return_value=None)  # type: ignore[attr-defined]
-    sys.modules["logger"] = _logger_stub
+    sys.modules["logger"] = _logger_stub 
 
 import chromadb as _chromadb  # noqa: E402
 

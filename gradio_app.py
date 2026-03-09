@@ -12,7 +12,7 @@ from dotenv import dotenv_values
 logger = logging.getLogger(__name__)
 from auth import authenticate
 from llm import llm
-from retriever import Retriever
+from retriever import Retriever, classify_query
 from vector import (
     GRADIO_COLLECTION_NAME,
     create_db,
@@ -102,7 +102,15 @@ def generate_response(history, state_db, last_sources):
         return new_history, last_sources, last_sources
     try:
         retriever = Retriever(state_db)
-        answer, source_documents = retriever.generate_with_message(message, llm, k=10)
+        query_type, chapter_number = classify_query(message, llm)
+        if query_type == "structural":
+            answer, source_documents = retriever.answer_structural(message, llm)
+        elif query_type == "chapter_filtered":
+            answer, source_documents = retriever.generate_chapter_filtered(
+                message, llm, chapter_number
+            )
+        else:
+            answer, source_documents = retriever.generate_with_message(message, llm, k=10)
         source_text = _format_sources(source_documents) if source_documents else ""
         num_sources = len(source_documents) if source_documents else 0
         logger.info("RAG response generated: query_len=%d answer_len=%d sources=%d", len(message), len(answer), num_sources)
