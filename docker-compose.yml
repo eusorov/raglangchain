@@ -2,8 +2,8 @@ services:
   app:
     build:
       context: .
-    expose:
-     - "7860"
+    ports:
+      - "7860:7860"
     environment:
       - VIRTUAL_HOST=rag.usomi.com,raglangchain.local
       - VIRTUAL_PORT=7860
@@ -25,6 +25,8 @@ services:
       - CHROMA_PORT=8000
       - CHROMA_SSL=false
       - GRADIO_COLLECTION_NAME=gradio_current_pdf
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-lgtm:4318
+      - OTEL_SERVICE_NAME=rag.usomi.com
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command: python -m gradio_app
@@ -44,18 +46,21 @@ services:
       retries: 3
     networks:
       - raglangchain_net
-  # otel-lgtm:
-  #   image: grafana/otel-lgtm:latest
-  #   environment:
-  #     - LGTMC_PROJECT_ID=raglangchain
-  #     - LGTMC_DATASET_ID=raglangchain
-  #     - LGTMC_SERVICE_NAME=raglangchain
-  #     - LGTMC_SERVICE_VERSION=1.0.0
-  #     - LGTMC_SERVICE_INSTANCE=raglangchain
-  #     - LGTMC_SERVICE_ENVIRONMENT=development
-  #     - LGTMC_SERVICE_HOST=raglangchain.local
-  #   networks:
-  #     - raglangchain_net
+  otel-lgtm:
+    image: grafana/otel-lgtm:latest
+    ports:
+      - "4318:4318"
+      - "3000:3000"
+    environment:
+      - LGTMC_PROJECT_ID=raglangchain
+      - LGTMC_DATASET_ID=raglangchain
+      - LGTMC_SERVICE_NAME=raglangchain
+      - LGTMC_SERVICE_VERSION=1.0.0
+      - LGTMC_SERVICE_INSTANCE=raglangchain
+      - LGTMC_SERVICE_ENVIRONMENT=development
+      - LGTMC_SERVICE_HOST=raglangchain
+    networks:
+      - raglangchain_net
 volumes:
   chroma-data:
 
