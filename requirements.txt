@@ -103,6 +103,7 @@ pydantic-settings==2.13.1
 pydantic_core==2.41.5
 pydub==0.25.1
 Pygments==2.19.2
+pypdf==6.7.5
 PyPika==0.51.1
 pyproject_hooks==1.2.0
 python-dateutil==2.9.0.post0
