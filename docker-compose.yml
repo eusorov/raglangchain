@@ -7,24 +7,24 @@ services:
     environment:
       - VIRTUAL_HOST= "rag.usomi.com,raglangchain.local"
       - VIRTUAL_PORT= "7860"
-      - GRADIO_SERVER_NAME= "0.0.0.0"
-      - GRADIO_SERVER_PORT= "7860"
+      - GRADIO_SERVER_NAME=0.0.0.0
+      - GRADIO_SERVER_PORT= ${GRADIO_SERVER_PORT:-7860}
       # LLM_PROVIDER: ollama | gemini | openai (switch implementation)
-      - LLM_PROVIDER= "${LLM_PROVIDER:-ollama}"
+      - LLM_PROVIDER=openai
       # Ollama (when LLM_PROVIDER=ollama)
-      - LOCAL_LLM_BASE= "${LOCAL_LLM_BASE:-http://host.docker.internal:11434}"
-      - LOCAL_LLM_MODEL= "${LOCAL_LLM_MODEL:-qwen3}"
-      - LOCAL_EMBEDDING_MODEL= "${LOCAL_EMBEDDING_MODEL:-qwen3-embedding}"
+      - LOCAL_LLM_BASE=${LOCAL_LLM_BASE:-http://host.docker.internal:11434}
+      - LOCAL_LLM_MODEL=${LOCAL_LLM_MODEL:-qwen3}
+      - LOCAL_EMBEDDING_MODEL=${LOCAL_EMBEDDING_MODEL:-qwen3-embedding}
       # Gemini (when LLM_PROVIDER=gemini)
-      - GOOGLE_API_KEY= "${GOOGLE_API_KEY:-}"
-      - GEMINI_MODEL= "${GEMINI_MODEL:-gemini-2.0-flash-lite}"
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-2.0-flash-lite}
       # OpenAI (when LLM_PROVIDER=openai)
-      - OPENAI_API_KEY= "${OPENAI_API_KEY:-}"
-      - OPENAI_MODEL= "${OPENAI_MODEL:-gpt-4o-mini}"
-      - CHROMA_HOST= "chromadb"
-      - CHROMA_PORT= "8000"
-      - CHROMA_SSL= "false"
-      - GRADIO_COLLECTION_NAME= "gradio_current_pdf"
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-4o-mini}
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+      - CHROMA_SSL=false
+      - GRADIO_COLLECTION_NAME=gradio_current_pdf
     extra_hosts:
       - "host.docker.internal:host-gateway"
     command: python -m gradio_app
@@ -44,7 +44,18 @@ services:
       retries: 3
     networks:
       - raglangchain_net
-
+  # otel-lgtm:
+  #   image: grafana/otel-lgtm:latest
+  #   environment:
+  #     - LGTMC_PROJECT_ID=raglangchain
+  #     - LGTMC_DATASET_ID=raglangchain
+  #     - LGTMC_SERVICE_NAME=raglangchain
+  #     - LGTMC_SERVICE_VERSION=1.0.0
+  #     - LGTMC_SERVICE_INSTANCE=raglangchain
+  #     - LGTMC_SERVICE_ENVIRONMENT=development
+  #     - LGTMC_SERVICE_HOST=raglangchain.local
+  #   networks:
+  #     - raglangchain_net
 volumes:
   chroma-data:
 
