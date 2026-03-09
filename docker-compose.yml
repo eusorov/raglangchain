@@ -37,7 +37,6 @@ services:
     command: python -m gradio_app
     networks:
       - nginx_proxy_net
-      - raglangchain_net
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:7860"]
       interval: 10s
@@ -75,12 +74,10 @@ services:
       - LGTMC_SERVICE_ENVIRONMENT=development
       - LGTMC_SERVICE_HOST=raglangchain
     networks:
-      - raglangchain_net
+      - nginx_proxy_net
 volumes:
   chroma-data:
 
 networks:
-  raglangchain_net:
-    driver: bridge
   nginx_proxy_net:
     external: true
