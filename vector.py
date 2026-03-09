@@ -1,4 +1,5 @@
 import os
+import re
 from datetime import datetime, timezone
 
 # OpenTelemetry: set up logging/tracing and instrument ChromaDB before first use
@@ -79,6 +80,61 @@ def get_collection_sample_metadata(collection_name=CHROMA_COLLECTION_NAME):
     except Exception:
         return None
 
+def _roman_to_int(s: str) -> int:
+    """Convert a Roman numeral string (I–XIII range) to int. Raises ValueError for unrecognised input."""
+    roman_values = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100, "D": 500, "M": 1000}
+    s = s.upper().strip()
+    if not s or not all(c in roman_values for c in s):
+        raise ValueError(f"Not a Roman numeral: {s!r}")
+    total = 0
+    prev = 0
+    for ch in reversed(s):
+        val = roman_values[ch]
+        if val < prev:
+            total -= val
+        else:
+            total += val
+        prev = val
+    return total
+
+
+def extract_chapter_structure(documents):
+    """
+    Scan page-level Documents for chapter headings.
+    Returns a list of dicts: {number, title, page_start, page_end}.
+    page_start and page_end are 1-based page numbers.
+    """
+    heading_re = re.compile(
+        r'^chapter\s+([IVXLCDM]+|\d+)[^\S\r\n]*[–\-:]?[^\S\r\n]*(.*)',
+        re.IGNORECASE | re.MULTILINE,
+    )
+    chapters = []
+    for doc in documents:
+        page_1based = doc.metadata.get("page", 0) + 1
+        match = heading_re.search(doc.page_content[:400])
+        if match:
+            raw_num = match.group(1).strip()
+            raw_title = match.group(2).strip()
+            try:
+                number = _roman_to_int(raw_num)
+            except ValueError:
+                number = int(raw_num)
+            chapters.append({
+                "number": number,
+                "title": raw_title if raw_title else f"Chapter {number}",
+                "page_start": page_1based,
+                "page_end": -1,
+            })
+
+    for i, ch in enumerate(chapters):
+        if i + 1 < len(chapters):
+            ch["page_end"] = chapters[i + 1]["page_start"] - 1
+        else:
+            ch["page_end"] = documents[-1].metadata.get("page", 0) + 1
+
+    return chapters
+
+
 def load_documents(file_path, extra_metadata=None):
     """Load documents from a file path. Optionally add PDF-level metadata (e.g. pdf_name, indexed_at) to every page."""
     loader = PyPDFLoader(file_path)
@@ -96,8 +152,25 @@ def load_documents(file_path, extra_metadata=None):
         **({"file_modified": file_modified} if file_modified else {}),
         **(extra_metadata or {}),
     }
+    chapters = extract_chapter_structure(documents)
+
+    def _chapter_for_page(page_1based):
+        """Return the chapter dict whose range contains page_1based, or None."""
+        for ch in reversed(chapters):
+            if ch["page_start"] <= page_1based:
+                return ch
+        return None
+
     for doc in documents:
         doc.metadata.update(base_meta)
+        page_1based = doc.metadata.get("page", 0) + 1
+        ch = _chapter_for_page(page_1based)
+        doc.metadata.update({
+            "chapter_number":     ch["number"]     if ch is not None else -1,
+            "chapter_title":      ch["title"]      if ch is not None else "",
+            "chapter_page_start": ch["page_start"] if ch is not None else -1,
+            "chapter_page_end":   ch["page_end"]   if ch is not None else -1,
+        })
     return documents
 
 

@@ -64,6 +64,9 @@ services:
       - "4317:4317"
       - "3000:3000"
     environment:
+      - VIRTUAL_HOST=rag.otel.usomi.de,rag.otel.local
+      - VIRTUAL_PORT=3000
+      - LETSENCRYPT_HOST=rag.otel.usomi.de
       - LGTMC_PROJECT_ID=raglangchain
       - LGTMC_DATASET_ID=raglangchain
       - LGTMC_SERVICE_NAME=raglangchain
