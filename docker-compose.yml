@@ -58,25 +58,6 @@ services:
       retries: 3
     networks:
       - nginx_proxy_net
-  otel-lgtm:
-    image: grafana/otel-lgtm:latest
-    ports:
-      - "4318:4318"
-      - "4317:4317"
-      - "3000:3000"
-    environment:
-      - VIRTUAL_HOST=rag.otel.usomi.de,rag.otel.local
-      - VIRTUAL_PORT=3000
-      - LETSENCRYPT_HOST=rag.otel.usomi.de
-      - LGTMC_PROJECT_ID=raglangchain
-      - LGTMC_DATASET_ID=raglangchain
-      - LGTMC_SERVICE_NAME=raglangchain
-      - LGTMC_SERVICE_VERSION=1.0.0
-      - LGTMC_SERVICE_INSTANCE=raglangchain
-      - LGTMC_SERVICE_ENVIRONMENT=development
-      - LGTMC_SERVICE_HOST=raglangchain
-    networks:
-      - nginx_proxy_net
 volumes:
   chroma-data:
 
